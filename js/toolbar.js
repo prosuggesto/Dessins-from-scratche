@@ -43,13 +43,28 @@ const Toolbar = (() => {
 
         // ── Text controls (in palette bar) ────────
         document.getElementById('text-font-select').addEventListener('change', (e) => {
-            CanvasBoard.setTextFont(e.target.value);
+            const font = e.target.value;
+            CanvasBoard.setTextFont(font);
+
+            // If an edit popup is open, sync it
+            if (CanvasBoard.isEditPopupOpen()) {
+                const editFont = document.getElementById('text-edit-font');
+                if (editFont) editFont.value = font;
+                CanvasBoard.applyEdit();
+            }
         });
 
         document.getElementById('text-size-input').addEventListener('input', (e) => {
             const size = parseInt(e.target.value, 10);
             if (!isNaN(size) && size >= 8) {
                 CanvasBoard.setTextSize(size);
+
+                // If an edit popup is open, sync it
+                if (CanvasBoard.isEditPopupOpen()) {
+                    const editSize = document.getElementById('text-edit-size');
+                    if (editSize) editSize.value = size;
+                    CanvasBoard.applyEdit();
+                }
             }
         });
 

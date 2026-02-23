@@ -47,6 +47,12 @@ const CanvasBoard = (() => {
         ctx = canvas.getContext('2d');
         resize();
 
+        // Sync initial text state from DOM
+        const fontSelect = document.getElementById('text-font-select');
+        const sizeInput = document.getElementById('text-size-input');
+        if (fontSelect) textFontFamily = fontSelect.value;
+        if (sizeInput) textFontSize = parseInt(sizeInput.value, 10) || 24;
+
         // Pointer events for mouse + touch
         canvas.addEventListener('pointerdown', onPointerDown);
         canvas.addEventListener('pointermove', onPointerMove);
@@ -542,51 +548,64 @@ const CanvasBoard = (() => {
         ctx.restore();
     }
 
-    function drawTextStroke(stroke) {
-        ctx.save();
+    function drawTextStroke(stroke, targetCtx = ctx) {
+        targetCtx.save();
         const family = stroke.fontFamily || 'Inter';
-        ctx.font = `${stroke.fontSize}px '${family}', sans-serif`;
-        ctx.fillStyle = stroke.color;
-        ctx.textBaseline = 'alphabetic';
-        ctx.fillText(stroke.text, stroke.x, stroke.y);
-        ctx.restore();
+        targetCtx.font = `${stroke.fontSize}px '${family}', sans-serif`;
+        targetCtx.fillStyle = stroke.color;
+        targetCtx.textBaseline = 'alphabetic';
+        targetCtx.fillText(stroke.text, stroke.x, stroke.y);
+        targetCtx.restore();
     }
 
-    function drawStroke(stroke) {
+    function drawStroke(stroke, targetCtx = ctx) {
         const pts = stroke.points;
         if (pts.length === 0) return;
 
-        ctx.strokeStyle = stroke.color;
-        ctx.lineWidth = stroke.size;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+        targetCtx.strokeStyle = stroke.color;
+        targetCtx.lineWidth = stroke.size;
+        targetCtx.lineCap = 'round';
+        targetCtx.lineJoin = 'round';
 
         if (pts.length === 1) {
-            ctx.fillStyle = stroke.color;
-            ctx.beginPath();
-            ctx.arc(pts[0].x, pts[0].y, stroke.size / 2, 0, Math.PI * 2);
-            ctx.fill();
+            targetCtx.fillStyle = stroke.color;
+            targetCtx.beginPath();
+            targetCtx.arc(pts[0].x, pts[0].y, stroke.size / 2, 0, Math.PI * 2);
+            targetCtx.fill();
             return;
         }
 
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x, pts[0].y);
+        targetCtx.beginPath();
+        targetCtx.moveTo(pts[0].x, pts[0].y);
 
         if (pts.length === 2) {
-            ctx.lineTo(pts[1].x, pts[1].y);
+            targetCtx.lineTo(pts[1].x, pts[1].y);
         } else {
             // Quadratic curve smoothing
             for (let i = 1; i < pts.length - 1; i++) {
                 const midX = (pts[i].x + pts[i + 1].x) / 2;
                 const midY = (pts[i].y + pts[i + 1].y) / 2;
-                ctx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
+                targetCtx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
             }
             // Last point
             const last = pts[pts.length - 1];
-            ctx.lineTo(last.x, last.y);
+            targetCtx.lineTo(last.x, last.y);
         }
 
-        ctx.stroke();
+        targetCtx.stroke();
+    }
+
+    /**
+     * Renders a list of strokes to a specific context at 1:1 scale (no zoom/pan applied).
+     */
+    function renderStrokesToContext(strokeList, targetCtx) {
+        for (const stroke of strokeList) {
+            if (stroke.type === 'text') {
+                drawTextStroke(stroke, targetCtx);
+            } else {
+                drawStroke(stroke, targetCtx);
+            }
+        }
     }
 
     // ── Public API ────────────────────────────
@@ -618,68 +637,32 @@ const CanvasBoard = (() => {
         redraw();
     }
 
-    function toDataURL() {
-        // Export at 1:1 scale (no zoom/pan) for clean preview
+    function toDataURL(options = {}) {
+        const {
+            quality = 1,
+            pixelRatio = window.devicePixelRatio || 1,
+            strokeList = strokes
+        } = options;
+
         const container = document.getElementById('canvas-container');
-        const dpr = window.devicePixelRatio || 1;
         const w = container.clientWidth;
         const h = container.clientHeight;
 
         // Temp canvas for export
         const tmp = document.createElement('canvas');
-        tmp.width = w * dpr;
-        tmp.height = h * dpr;
+        tmp.width = w * pixelRatio;
+        tmp.height = h * pixelRatio;
         const tctx = tmp.getContext('2d');
-        tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        tctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
-        for (const stroke of strokes) {
-            if (stroke.type === 'text') {
-                tctx.save();
-                const family = stroke.fontFamily || 'Inter';
-                tctx.font = `${stroke.fontSize}px '${family}', sans-serif`;
-                tctx.fillStyle = stroke.color;
-                tctx.textBaseline = 'alphabetic';
-                tctx.fillText(stroke.text, stroke.x, stroke.y);
-                tctx.restore();
-                continue;
-            }
+        renderStrokesToContext(strokeList, tctx);
 
-            const pts = stroke.points;
-            if (pts.length === 0) continue;
-
-            tctx.strokeStyle = stroke.color;
-            tctx.lineWidth = stroke.size;
-            tctx.lineCap = 'round';
-            tctx.lineJoin = 'round';
-
-            if (pts.length === 1) {
-                tctx.fillStyle = stroke.color;
-                tctx.beginPath();
-                tctx.arc(pts[0].x, pts[0].y, stroke.size / 2, 0, Math.PI * 2);
-                tctx.fill();
-                continue;
-            }
-
-            tctx.beginPath();
-            tctx.moveTo(pts[0].x, pts[0].y);
-            if (pts.length === 2) {
-                tctx.lineTo(pts[1].x, pts[1].y);
-            } else {
-                for (let i = 1; i < pts.length - 1; i++) {
-                    const midX = (pts[i].x + pts[i + 1].x) / 2;
-                    const midY = (pts[i].y + pts[i + 1].y) / 2;
-                    tctx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
-                }
-                tctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
-            }
-            tctx.stroke();
-        }
-
-        return tmp.toDataURL('image/png');
+        return tmp.toDataURL('image/png', quality);
     }
 
     function setColor(color) {
         currentColor = color;
+        if (textMode) redraw(); // Update typing preview
     }
 
     function setBrushSize(size) {
@@ -691,8 +674,14 @@ const CanvasBoard = (() => {
     function hasStrokes() { return strokes.length > 0; }
 
     // ── Text toolbar API ─────────────────────
-    function setTextFont(font) { textFontFamily = font; }
-    function setTextSize(size) { textFontSize = Math.max(8, Math.min(200, size)); }
+    function setTextFont(font) {
+        textFontFamily = font;
+        if (textMode) redraw(); // Update typing preview
+    }
+    function setTextSize(size) {
+        textFontSize = Math.max(8, Math.min(200, size));
+        if (textMode) redraw(); // Update typing preview
+    }
     function getTextFont() { return textFontFamily; }
     function getTextSize() { return textFontSize; }
     function getFontOptions() { return FONT_OPTIONS; }
@@ -702,6 +691,7 @@ const CanvasBoard = (() => {
         init, undo, redo, clear,
         getStrokes, setStrokes,
         toDataURL,
+        renderStrokesToContext,
         setColor, setBrushSize,
         getColor, getBrushSize,
         hasStrokes,

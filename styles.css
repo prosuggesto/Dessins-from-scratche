@@ -142,6 +142,7 @@ body {
 }
 
 #brush-slider {
+  appearance: none;
   -webkit-appearance: none;
   width: 100px;
   height: 4px;
@@ -319,8 +320,21 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+
+.panel-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .panel-header h2 {
@@ -366,6 +380,27 @@ body {
 
 .history-card:hover {
   border-color: var(--accent);
+}
+
+.history-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.history-card-selection {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+}
+
+.history-card-checkbox {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--border);
+  border-radius: 4px;
 }
 
 .history-card-thumb {
@@ -433,6 +468,16 @@ body {
 .card-btn--delete:hover {
   border-color: var(--danger);
   color: var(--danger);
+}
+
+.card-btn--export {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.card-btn--export:hover {
+  background: var(--accent);
+  color: #fff;
 }
 
 /* ── MODALS ──────────────────────────────── */
