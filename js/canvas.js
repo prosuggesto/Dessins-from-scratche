@@ -23,6 +23,12 @@ const CanvasBoard = (() => {
     let textBuffer = '';     // current line being typed
     let textFontFamily = 'Inter';
     let textFontSize = 24;
+    let isDraggingText = false;
+    let textDragStartIndex = -1;
+    let textDragStartPos = { x: 0, y: 0 };
+    let textInitialPos = { x: 0, y: 0 };
+    let textDragMoved = false;
+
     const FONT_OPTIONS = [
         'Inter', 'Arial', 'Georgia', 'Courier New', 'Comic Sans MS',
         'Verdana', 'Times New Roman', 'Trebuchet MS', 'Impact', 'Palatino'
@@ -142,11 +148,19 @@ const CanvasBoard = (() => {
 
         if (e.button !== 0 && e.pointerType === 'mouse') return;
 
-        // Check if clicking on existing text → open edit popup
+        // Check if clicking on existing text → initiate dragging
         const { x: wx, y: wy } = screenToWorld(sx, sy);
         const hitIndex = hitTestText(wx, wy);
         if (hitIndex >= 0 && !textMode) {
-            showEditPopup(hitIndex);
+            isDraggingText = true;
+            textDragStartIndex = hitIndex;
+            textDragStartPos = { x: wx, y: wy };
+            const s = strokes[hitIndex];
+            textInitialPos = { x: s.x, y: s.y };
+            textDragMoved = false;
+            canvas.setPointerCapture(e.pointerId);
+            redraw();
+            highlightStroke(hitIndex);
             return;
         }
 
@@ -176,6 +190,28 @@ const CanvasBoard = (() => {
         const sx = e.clientX - rect.left;
         const sy = e.clientY - rect.top;
 
+        const { x: wx, y: wy } = screenToWorld(sx, sy);
+
+        // Update cursor style when hovering over text
+        if (!isDrawing && !isPanning && !isDraggingText && !textMode && !spaceDown) {
+            const hit = hitTestText(wx, wy);
+            canvas.style.cursor = hit >= 0 ? 'move' : 'crosshair';
+        }
+
+        if (isDraggingText && textDragStartIndex >= 0) {
+            const dx = wx - textDragStartPos.x;
+            const dy = wy - textDragStartPos.y;
+            if (Math.abs(dx) > 2 / scale || Math.abs(dy) > 2 / scale) {
+                textDragMoved = true;
+            }
+            const s = strokes[textDragStartIndex];
+            s.x = textInitialPos.x + dx;
+            s.y = textInitialPos.y + dy;
+            redraw();
+            highlightStroke(textDragStartIndex);
+            return;
+        }
+
         if (isPanning) {
             offsetX = sx - panStartX;
             offsetY = sy - panStartY;
@@ -196,6 +232,20 @@ const CanvasBoard = (() => {
             return;
         }
 
+        if (isDraggingText) {
+            canvas.releasePointerCapture(e.pointerId);
+            const wasDragged = textDragMoved;
+            const index = textDragStartIndex;
+            isDraggingText = false;
+            textDragStartIndex = -1;
+
+            // If it was just a click (not much movement), show the edit popup
+            if (!wasDragged && index >= 0) {
+                showEditPopup(index);
+            }
+            return;
+        }
+
         if (!isDrawing) return;
         isDrawing = false;
         if (currentStroke && currentStroke.points.length > 0) {
@@ -203,6 +253,7 @@ const CanvasBoard = (() => {
             redoStack = []; // new stroke clears redo
         }
         currentStroke = null;
+        canvas.releasePointerCapture(e.pointerId);
         redraw();
     }
 
@@ -326,13 +377,40 @@ const CanvasBoard = (() => {
         document.getElementById('text-edit-size').value = s.fontSize;
         document.getElementById('text-edit-color').value = s.color;
 
-        // Position popup near the text (screen coords)
-        const rect = canvas.getBoundingClientRect();
-        const sx = s.x * scale + offsetX + rect.left;
-        const sy = s.y * scale + offsetY + rect.top;
+        // Calculate text width to get bounding box
+        ctx.save();
+        ctx.font = `${s.fontSize}px '${s.fontFamily || 'Inter'}', sans-serif`;
+        const textWidth = ctx.measureText(s.text).width;
+        ctx.restore();
 
-        popup.style.left = Math.max(8, Math.min(sx, window.innerWidth - 300)) + 'px';
-        popup.style.top = Math.max(8, sy - 140) + 'px';
+        // Screen coords of the text
+        const rect = canvas.getBoundingClientRect();
+        const screenX = s.x * scale + offsetX + rect.left;
+        const screenY = s.y * scale + offsetY + rect.top;
+        const screenW = textWidth * scale;
+        const screenH = s.fontSize * scale;
+
+        // Positioning logic:
+        // Attempt to put popup centered above the text
+        const popupW = 320; // Approx fixed width from CSS
+        const popupH = 180; // Approx height with all controls
+        const margin = 20;
+
+        let left = screenX + (screenW / 2) - (popupW / 2);
+        let top = screenY - screenH - popupH - margin;
+
+        // Keep within window bounds
+        left = Math.max(10, Math.min(left, window.innerWidth - popupW - 10));
+
+        // If not enough space at top, put it below
+        if (top < 10) {
+            top = screenY + margin;
+        }
+        // If still off screen bottom, clamp it
+        top = Math.max(10, Math.min(top, window.innerHeight - popupH - 10));
+
+        popup.style.left = left + 'px';
+        popup.style.top = top + 'px';
         popup.classList.remove('text-edit-popup-hidden');
 
         // Highlight the selected stroke
