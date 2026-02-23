@@ -21,9 +21,12 @@ const CanvasBoard = (() => {
     let textCursorX = 0;
     let textCursorY = 0;
     let textBuffer = '';     // current line being typed
-    let cursorBlinkOn = true;
-    let cursorBlinkInterval = null;
-    const TEXT_FONT_SIZE_FACTOR = 6; // brushSize * factor = font size
+    let textFontFamily = 'Inter';
+    let textFontSize = 24;
+    const FONT_OPTIONS = [
+        'Inter', 'Arial', 'Georgia', 'Courier New', 'Comic Sans MS',
+        'Verdana', 'Times New Roman', 'Trebuchet MS', 'Impact', 'Palatino'
+    ];
 
     // ── Zoom & Pan state ────────────────────
     let scale = 1;
@@ -253,24 +256,41 @@ const CanvasBoard = (() => {
         textBuffer = '';
         canvas.style.cursor = 'text';
 
-        // Start blinking cursor
-        cursorBlinkOn = true;
-        clearInterval(cursorBlinkInterval);
-        cursorBlinkInterval = setInterval(() => {
-            cursorBlinkOn = !cursorBlinkOn;
-            redraw();
-            drawTextCursor();
-        }, 530);
+        // Show floating text toolbar
+        showTextToolbar(x, y);
 
         redraw();
         drawTextCursor();
     }
 
+    function showTextToolbar(wx, wy) {
+        let toolbar = document.getElementById('text-toolbar');
+        if (!toolbar) return;
+        toolbar.classList.remove('text-toolbar-hidden');
+
+        // Position near the text cursor (screen coords)
+        const rect = canvas.getBoundingClientRect();
+        const sx = wx * scale + offsetX + rect.left;
+        const sy = wy * scale + offsetY + rect.top - 50;
+
+        toolbar.style.left = Math.max(8, Math.min(sx, window.innerWidth - 320)) + 'px';
+        toolbar.style.top = Math.max(8, sy) + 'px';
+
+        // Sync controls with current state
+        document.getElementById('text-font-select').value = textFontFamily;
+        document.getElementById('text-size-input').value = textFontSize;
+        document.getElementById('text-color-input').value = currentColor;
+    }
+
+    function hideTextToolbar() {
+        const toolbar = document.getElementById('text-toolbar');
+        if (toolbar) toolbar.classList.add('text-toolbar-hidden');
+    }
+
     function exitTextMode() {
         textMode = false;
         textBuffer = '';
-        clearInterval(cursorBlinkInterval);
-        cursorBlinkInterval = null;
+        hideTextToolbar();
         canvas.style.cursor = 'crosshair';
         redraw();
     }
@@ -279,7 +299,6 @@ const CanvasBoard = (() => {
         if (textBuffer.length === 0) return;
 
         // Store as a text-type stroke
-        const fontSize = brushSize * TEXT_FONT_SIZE_FACTOR;
         strokes.push({
             type: 'text',
             text: textBuffer,
@@ -287,13 +306,14 @@ const CanvasBoard = (() => {
             y: textCursorY,
             color: currentColor,
             size: brushSize,
-            fontSize: fontSize
+            fontSize: textFontSize,
+            fontFamily: textFontFamily
         });
         redoStack = [];
 
         // Advance cursor X past the committed text
         ctx.save();
-        ctx.font = `${fontSize}px 'Inter', sans-serif`;
+        ctx.font = `${textFontSize}px '${textFontFamily}', sans-serif`;
         textCursorX += ctx.measureText(textBuffer).width / scale;
         ctx.restore();
 
@@ -303,7 +323,7 @@ const CanvasBoard = (() => {
     function onKeyDown(e) {
         if (!textMode) return;
         // Don't intercept if in an input/modal
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
         // Don't intercept Ctrl/Cmd shortcuts
         if (e.ctrlKey || e.metaKey) return;
 
@@ -318,9 +338,7 @@ const CanvasBoard = (() => {
         if (e.key === 'Enter') {
             // Commit current line and move cursor down
             commitTextBuffer();
-            const fontSize = brushSize * TEXT_FONT_SIZE_FACTOR;
-            textCursorY += fontSize * 1.3;
-            // Reset X to original column? We'll use current X for newline
+            textCursorY += textFontSize * 1.3;
             redraw();
             drawTextCursor();
             e.preventDefault();
@@ -350,28 +368,25 @@ const CanvasBoard = (() => {
 
     function drawTextPreview() {
         if (textBuffer.length === 0) return;
-        const fontSize = brushSize * TEXT_FONT_SIZE_FACTOR;
 
         ctx.save();
         applyTransform();
-        ctx.font = `${fontSize}px 'Inter', sans-serif`;
+        ctx.font = `${textFontSize}px '${textFontFamily}', sans-serif`;
         ctx.fillStyle = currentColor;
-        ctx.globalAlpha = 0.7; // Preview is slightly transparent
         ctx.textBaseline = 'alphabetic';
         ctx.fillText(textBuffer, textCursorX, textCursorY);
         ctx.restore();
     }
 
     function drawTextCursor() {
-        if (!textMode || !cursorBlinkOn) return;
+        if (!textMode) return;
 
-        const fontSize = brushSize * TEXT_FONT_SIZE_FACTOR;
         let cursorX = textCursorX;
 
         // Offset cursor past the preview text
         if (textBuffer.length > 0) {
             ctx.save();
-            ctx.font = `${fontSize}px 'Inter', sans-serif`;
+            ctx.font = `${textFontSize}px '${textFontFamily}', sans-serif`;
             cursorX += ctx.measureText(textBuffer).width / scale;
             ctx.restore();
         }
@@ -379,11 +394,11 @@ const CanvasBoard = (() => {
         ctx.save();
         applyTransform();
         ctx.strokeStyle = currentColor;
-        ctx.lineWidth = 2 / scale;
-        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 1.5 / scale;
+        ctx.globalAlpha = 0.6;
         ctx.beginPath();
-        ctx.moveTo(cursorX, textCursorY - fontSize * 0.8);
-        ctx.lineTo(cursorX, textCursorY + fontSize * 0.2);
+        ctx.moveTo(cursorX, textCursorY - textFontSize * 0.8);
+        ctx.lineTo(cursorX, textCursorY + textFontSize * 0.2);
         ctx.stroke();
         ctx.restore();
     }
@@ -439,7 +454,8 @@ const CanvasBoard = (() => {
 
     function drawTextStroke(stroke) {
         ctx.save();
-        ctx.font = `${stroke.fontSize}px 'Inter', sans-serif`;
+        const family = stroke.fontFamily || 'Inter';
+        ctx.font = `${stroke.fontSize}px '${family}', sans-serif`;
         ctx.fillStyle = stroke.color;
         ctx.textBaseline = 'alphabetic';
         ctx.fillText(stroke.text, stroke.x, stroke.y);
@@ -529,7 +545,8 @@ const CanvasBoard = (() => {
         for (const stroke of strokes) {
             if (stroke.type === 'text') {
                 tctx.save();
-                tctx.font = `${stroke.fontSize}px 'Inter', sans-serif`;
+                const family = stroke.fontFamily || 'Inter';
+                tctx.font = `${stroke.fontSize}px '${family}', sans-serif`;
                 tctx.fillStyle = stroke.color;
                 tctx.textBaseline = 'alphabetic';
                 tctx.fillText(stroke.text, stroke.x, stroke.y);
@@ -583,6 +600,14 @@ const CanvasBoard = (() => {
     function getBrushSize() { return brushSize; }
     function hasStrokes() { return strokes.length > 0; }
 
+    // ── Text toolbar API ─────────────────────
+    function setTextFont(font) { textFontFamily = font; }
+    function setTextSize(size) { textFontSize = Math.max(8, Math.min(200, size)); }
+    function getTextFont() { return textFontFamily; }
+    function getTextSize() { return textFontSize; }
+    function getFontOptions() { return FONT_OPTIONS; }
+    function isTextMode() { return textMode; }
+
     return {
         init, undo, redo, clear,
         getStrokes, setStrokes,
@@ -590,6 +615,9 @@ const CanvasBoard = (() => {
         setColor, setBrushSize,
         getColor, getBrushSize,
         hasStrokes,
-        zoomIn, zoomOut, zoomReset
+        zoomIn, zoomOut, zoomReset,
+        setTextFont, setTextSize,
+        getTextFont, getTextSize,
+        getFontOptions, isTextMode
     };
 })();

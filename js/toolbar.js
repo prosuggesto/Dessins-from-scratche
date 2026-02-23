@@ -40,6 +40,27 @@ const Toolbar = (() => {
         document.getElementById('btn-zoom-out').addEventListener('click', () => CanvasBoard.zoomOut());
         document.getElementById('btn-zoom-reset').addEventListener('click', () => CanvasBoard.zoomReset());
         document.getElementById('zoom-level').addEventListener('dblclick', () => CanvasBoard.zoomReset());
+
+        // ── Text toolbar controls ─────────────
+        document.getElementById('text-font-select').addEventListener('change', (e) => {
+            CanvasBoard.setTextFont(e.target.value);
+        });
+
+        document.getElementById('text-size-input').addEventListener('input', (e) => {
+            const size = parseInt(e.target.value, 10);
+            if (!isNaN(size) && size >= 8) {
+                CanvasBoard.setTextSize(size);
+            }
+        });
+
+        document.getElementById('text-color-input').addEventListener('input', (e) => {
+            CanvasBoard.setColor(e.target.value);
+        });
+
+        // Prevent text toolbar inputs from triggering canvas text input
+        document.getElementById('text-toolbar').addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+        });
     }
 
     return { init };
