@@ -4,6 +4,26 @@
 
 const ExportEngine = (() => {
 
+    const LOGO_PATH = 'assets/logo.png';
+    const BG_COLOR = '#111116';
+    const ACCENT_COLOR = '#ffffff';
+    const SUBTEXT_COLOR = '#71717a';
+
+    /**
+     * Loads an image from a path
+     */
+    function loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => {
+                console.warn(`Failed to load logo from ${src}`);
+                resolve(null); // Resolve with null so export can proceed without logo
+            };
+            img.src = src;
+        });
+    }
+
     /**
      * Triggers a browser download of a dataURL
      */
@@ -15,34 +35,59 @@ const ExportEngine = (() => {
     }
 
     /**
-     * Exports a single drawing in high quality
+     * Renders a drawing section to a context
      */
-    function exportSingle(drawing) {
-        const pixelRatio = 3; // 3x quality
-        const dataUrl = CanvasBoard.toDataURL({
-            pixelRatio: pixelRatio,
-            strokeList: drawing.strokes,
-            quality: 1
-        });
+    async function renderDrawingToContext(drawing, ctx, width, heightPerDrawing, yOffset, pixelRatio, logoImg) {
+        const titleHeight = 100 * pixelRatio;
+        const padding = 40 * pixelRatio;
 
-        const safeName = drawing.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        download(dataUrl, `sketch_${safeName}.png`);
+        // Section Background (Uniform dark)
+        ctx.fillStyle = BG_COLOR;
+        ctx.fillRect(0, yOffset, width, heightPerDrawing + titleHeight);
+
+        // Draw Logo (Suggesto)
+        if (logoImg) {
+            const logoW = 120 * pixelRatio;
+            const logoH = (logoImg.height / logoImg.width) * logoW;
+            ctx.drawImage(logoImg, padding, yOffset + 25 * pixelRatio, logoW, logoH);
+        }
+
+        // Draw Header (Title & Date)
+        ctx.save();
+        ctx.fillStyle = ACCENT_COLOR;
+        ctx.font = `bold ${24 * pixelRatio}px 'Inter', sans-serif`;
+        ctx.fillText(drawing.name, padding + (logoImg ? 140 * pixelRatio : 0), yOffset + 50 * pixelRatio);
+
+        const date = new Date(drawing.createdAt).toLocaleDateString('fr-FR', {
+            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        ctx.fillStyle = SUBTEXT_COLOR;
+        ctx.font = `${14 * pixelRatio}px 'Inter', sans-serif`;
+        ctx.fillText(date, padding + (logoImg ? 140 * pixelRatio : 0), yOffset + 75 * pixelRatio);
+        ctx.restore();
+
+        // Draw Strokes
+        ctx.save();
+        ctx.translate(0, yOffset + titleHeight);
+        ctx.scale(pixelRatio, pixelRatio);
+        CanvasBoard.renderStrokesToContext(drawing.strokes, ctx);
+        ctx.restore();
     }
 
     /**
-     * Exports multiple drawings stacked vertically
+     * Exports drawings (single or bundle)
      */
-    async function exportVertical(selectedDrawings) {
-        if (selectedDrawings.length === 0) return;
+    async function exportDrawings(selectedDrawings) {
+        if (!selectedDrawings || selectedDrawings.length === 0) return;
 
         const container = document.getElementById('canvas-container');
         const baseWidth = container.clientWidth;
         const baseHeight = container.clientHeight;
-        const pixelRatio = 2; // 2x for multi-export to avoid massive file sizes but keep it crisp
+        const pixelRatio = selectedDrawings.length > 1 ? 2 : 3; // 3x for single, 2x for bundle to save memory
 
         const canvasWidth = baseWidth * pixelRatio;
         const canvasHeightPerDrawing = baseHeight * pixelRatio;
-        const titleHeight = 80 * pixelRatio; // Space for title/date
+        const titleHeight = 100 * pixelRatio;
 
         const totalHeight = (canvasHeightPerDrawing + titleHeight) * selectedDrawings.length;
 
@@ -51,49 +96,30 @@ const ExportEngine = (() => {
         exportCanvas.height = totalHeight;
         const ctx = exportCanvas.getContext('2d');
 
-        // Dark background
-        ctx.fillStyle = '#111116';
-        ctx.fillRect(0, 0, canvasWidth, totalHeight);
+        const logoImg = await loadImage(LOGO_PATH);
 
         for (let i = 0; i < selectedDrawings.length; i++) {
-            const drawing = selectedDrawings[i];
             const yOffset = i * (canvasHeightPerDrawing + titleHeight);
+            await renderDrawingToContext(selectedDrawings[i], ctx, canvasWidth, canvasHeightPerDrawing, yOffset, pixelRatio, logoImg);
 
-            // Draw Header (Title & Date)
-            ctx.save();
-            ctx.fillStyle = '#ffffff';
-            ctx.font = `bold ${24 * pixelRatio}px 'Inter', sans-serif`;
-            ctx.fillText(drawing.name, 40 * pixelRatio, yOffset + 40 * pixelRatio);
-
-            const date = new Date(drawing.createdAt).toLocaleDateString('fr-FR', {
-                day: '2-digit', month: 'short', year: 'numeric'
-            });
-            ctx.fillStyle = '#71717a';
-            ctx.font = `${14 * pixelRatio}px 'Inter', sans-serif`;
-            ctx.fillText(date, 40 * pixelRatio, yOffset + 65 * pixelRatio);
-            ctx.restore();
-
-            // Draw Strokes
-            ctx.save();
-            ctx.translate(0, yOffset + titleHeight);
-            ctx.scale(pixelRatio, pixelRatio);
-            CanvasBoard.renderStrokesToContext(drawing.strokes, ctx);
-            ctx.restore();
-
-            // Optional Divider
+            // Divider
             if (i < selectedDrawings.length - 1) {
                 ctx.strokeStyle = '#2a2a35';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 1 * pixelRatio;
                 ctx.beginPath();
-                ctx.moveTo(0, yOffset + titleHeight + canvasHeightPerDrawing + (titleHeight / 2));
-                ctx.lineTo(canvasWidth, yOffset + titleHeight + canvasHeightPerDrawing + (titleHeight / 2));
-                // ctx.stroke(); // commenting out for cleaner look unless asked
+                ctx.moveTo(0, yOffset + titleHeight + canvasHeightPerDrawing);
+                ctx.lineTo(canvasWidth, yOffset + titleHeight + canvasHeightPerDrawing);
+                ctx.stroke();
             }
         }
 
         const dataUrl = exportCanvas.toDataURL('image/png', 1);
-        download(dataUrl, `sketch_bundle_${Date.now()}.png`);
+        const fileName = selectedDrawings.length > 1
+            ? `sketch_bundle_${Date.now()}.png`
+            : `sketch_${selectedDrawings[0].name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.png`;
+
+        download(dataUrl, fileName);
     }
 
-    return { exportSingle, exportVertical };
+    return { exportDrawings, exportSingle: (d) => exportDrawings([d]), exportVertical: (ds) => exportDrawings(ds) };
 })();

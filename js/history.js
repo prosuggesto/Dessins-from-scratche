@@ -10,8 +10,7 @@ const History = (() => {
 
     function init() {
         document.getElementById('btn-close-history').addEventListener('click', closePanel);
-        document.getElementById('btn-bulk-export').addEventListener('click', handleBulkExport);
-        document.getElementById('btn-export-mode').addEventListener('click', toggleExportMode);
+        document.getElementById('btn-export-mode').addEventListener('click', handleHeaderExportClick);
 
         // Create backdrop element
         const backdrop = document.createElement('div');
@@ -43,6 +42,14 @@ const History = (() => {
         selectedIds.clear();
     }
 
+    function handleHeaderExportClick() {
+        if (selectedIds.size > 0) {
+            handleBulkExport();
+        } else {
+            toggleExportMode();
+        }
+    }
+
     function toggleExportMode() {
         isExportMode = !isExportMode;
         const btn = document.getElementById('btn-export-mode');
@@ -50,7 +57,6 @@ const History = (() => {
 
         if (!isExportMode) {
             selectedIds.clear();
-            updateBulkExportVisibility();
         }
         renderList();
     }
@@ -118,11 +124,10 @@ const History = (() => {
         const selected = drawings.filter(d => selectedIds.has(d.id));
         if (selected.length === 0) return;
 
-        ExportEngine.exportVertical(selected).then(() => {
+        ExportEngine.exportDrawings(selected).then(() => {
             selectedIds.clear();
             isExportMode = false;
             document.getElementById('btn-export-mode').classList.remove('tool-btn--accent');
-            updateBulkExportVisibility();
             renderList();
         });
     }
@@ -132,23 +137,16 @@ const History = (() => {
             selectedIds.delete(id);
         } else {
             selectedIds.add(id);
-            if (!isExportMode) toggleExportMode();
+            if (!isExportMode) {
+                isExportMode = true;
+                document.getElementById('btn-export-mode').classList.add('tool-btn--accent');
+            }
         }
-        updateBulkExportVisibility();
-        renderList(false);
-    }
-
-    function updateBulkExportVisibility() {
-        const btn = document.getElementById('btn-bulk-export');
-        if (selectedIds.size > 0) {
-            btn.classList.remove('btn-hidden');
-        } else {
-            btn.classList.add('btn-hidden');
-        }
+        renderList();
     }
 
     // ── Render list ───────────────────────────
-    function renderList(full = true) {
+    function renderList() {
         const container = document.getElementById('history-list');
         const drawings = getDrawings();
 
@@ -157,17 +155,16 @@ const History = (() => {
             return;
         }
 
-        if (full) {
-            container.innerHTML = drawings.map(d => {
-                const date = new Date(d.createdAt);
-                const dateStr = date.toLocaleDateString('fr-FR', {
-                    day: '2-digit', month: 'short', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit'
-                });
+        container.innerHTML = drawings.map(d => {
+            const date = new Date(d.createdAt);
+            const dateStr = date.toLocaleDateString('fr-FR', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
 
-                const isSelected = selectedIds.has(d.id);
+            const isSelected = selectedIds.has(d.id);
 
-                return `
+            return `
         <div class="history-card ${isSelected ? 'selected' : ''}" data-id="${d.id}">
           <div class="history-card-selection ${isExportMode || isSelected ? '' : 'btn-hidden'}">
             <input type="checkbox" class="history-card-checkbox" ${isSelected ? 'checked' : ''} data-select-id="${d.id}">
@@ -182,30 +179,14 @@ const History = (() => {
             <div class="history-card-actions">
               <button class="card-btn card-btn--load" data-action="load" data-id="${d.id}">Charger</button>
               <button class="card-btn" data-action="rename" data-id="${d.id}">Renommer</button>
-              <button class="card-btn card-btn--export" data-action="export-single" data-id="${d.id}" title="Exporter PNG">PNG</button>
               <button class="card-btn card-btn--delete" data-action="delete" data-id="${d.id}">Suppr.</button>
             </div>
           </div>
         </div>
       `;
-            }).join('');
-        } else {
-            container.querySelectorAll('.history-card').forEach(card => {
-                const id = card.dataset.id;
-                const isSelected = selectedIds.has(id);
-                card.classList.toggle('selected', isSelected);
-                const cb = card.querySelector('.history-card-checkbox');
-                if (cb) cb.checked = isSelected;
+        }).join('');
 
-                const selectionArea = card.querySelector('.history-card-selection');
-                if (selectionArea) {
-                    if (isExportMode || isSelected) selectionArea.classList.remove('btn-hidden');
-                    else selectionArea.classList.add('btn-hidden');
-                }
-            });
-        }
-
-        // Re-bind listeners
+        // Event delegation
         container.querySelectorAll('[data-action]').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
@@ -214,10 +195,6 @@ const History = (() => {
                 if (action === 'load') loadDrawing(id);
                 if (action === 'rename') renameDrawing(id);
                 if (action === 'delete') deleteDrawing(id);
-                if (action === 'export-single') {
-                    const d = getDrawings().find(draw => draw.id === id);
-                    if (d) ExportEngine.exportSingle(d);
-                }
             };
         });
 
@@ -228,6 +205,7 @@ const History = (() => {
             };
         });
 
+        // Checkbox click
         container.querySelectorAll('.history-card-checkbox').forEach(cb => {
             cb.onchange = (e) => {
                 toggleSelection(cb.dataset.selectId);
