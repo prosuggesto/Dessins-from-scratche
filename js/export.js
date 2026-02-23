@@ -66,11 +66,15 @@ const ExportEngine = (() => {
         ctx.fillText(date, textX, yOffset + 85 * pixelRatio);
         ctx.restore();
 
-        // Draw Strokes
+        // Draw Strokes with auto-centering and fitting
+        const strokeSpaceWidth = width;
+        const strokeSpaceHeight = heightPerDrawing;
+
         ctx.save();
         ctx.translate(0, yOffset + titleHeight);
+        // We use the pixelRatio to ensure crispness, but renderStrokesToContext handles the internal scaling to fit
         ctx.scale(pixelRatio, pixelRatio);
-        CanvasBoard.renderStrokesToContext(drawing.strokes, ctx);
+        CanvasBoard.renderStrokesToContext(drawing.strokes, ctx, strokeSpaceWidth / pixelRatio, strokeSpaceHeight / pixelRatio, 40);
         ctx.restore();
     }
 

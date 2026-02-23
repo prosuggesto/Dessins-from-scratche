@@ -2,6 +2,10 @@
    SKETCH BOARD — Dark Premium Theme
    ══════════════════════════════════════════════ */
 
+.btn-hidden {
+  display: none !important;
+}
+
 :root {
   --bg: #0b0b0f;
   --bg-canvas: #111116;

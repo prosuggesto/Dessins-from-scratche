@@ -596,9 +596,77 @@ const CanvasBoard = (() => {
     }
 
     /**
-     * Renders a list of strokes to a specific context at 1:1 scale (no zoom/pan applied).
+     * Calculates the bounding box of a list of strokes.
      */
-    function renderStrokesToContext(strokeList, targetCtx) {
+    function getStrokesBoundingBox(strokeList) {
+        if (!strokeList || strokeList.length === 0) return null;
+
+        let minX = Infinity, minY = Infinity;
+        let maxX = -Infinity, maxY = -Infinity;
+
+        strokeList.forEach(s => {
+            if (s.type === 'text') {
+                const family = s.fontFamily || 'Inter';
+                ctx.save();
+                ctx.font = `${s.fontSize}px '${family}', sans-serif`;
+                const w = ctx.measureText(s.text).width;
+                ctx.restore();
+
+                minX = Math.min(minX, s.x);
+                minY = Math.min(minY, s.y - s.fontSize * 0.8);
+                maxX = Math.max(maxX, s.x + w);
+                maxY = Math.max(maxY, s.y + s.fontSize * 0.25);
+            } else if (s.points && s.points.length > 0) {
+                s.points.forEach(p => {
+                    minX = Math.min(minX, p.x);
+                    minY = Math.min(minY, p.y);
+                    maxX = Math.max(maxX, p.x);
+                    maxY = Math.max(maxY, p.y);
+                });
+                // Pad by brush size
+                const pad = s.size / 2;
+                minX -= pad; minY -= pad;
+                maxX += pad; maxY += pad;
+            }
+        });
+
+        if (minX === Infinity) return null;
+
+        return {
+            x: minX, y: minY,
+            width: maxX - minX,
+            height: maxY - minY
+        };
+    }
+
+    /**
+     * Renders a list of strokes to a specific context.
+     * Can optionally fit the content to a target area.
+     */
+    function renderStrokesToContext(strokeList, targetCtx, targetWidth = null, targetHeight = null, padding = 40) {
+        if (!strokeList || strokeList.length === 0) return;
+
+        targetCtx.save();
+
+        if (targetWidth !== null && targetHeight !== null) {
+            const bbox = getStrokesBoundingBox(strokeList);
+            if (bbox) {
+                const availableW = targetWidth - padding * 2;
+                const availableH = targetHeight - padding * 2;
+
+                const scaleW = availableW / bbox.width;
+                const scaleH = availableH / bbox.height;
+                const fitScale = Math.min(1.5, Math.min(scaleW, scaleH)); // Max scale 1.5x to avoid pixelation
+
+                const centerX = padding + (availableW - bbox.width * fitScale) / 2;
+                const centerY = padding + (availableH - bbox.height * fitScale) / 2;
+
+                targetCtx.translate(centerX, centerY);
+                targetCtx.scale(fitScale, fitScale);
+                targetCtx.translate(-bbox.x, -bbox.y);
+            }
+        }
+
         for (const stroke of strokeList) {
             if (stroke.type === 'text') {
                 drawTextStroke(stroke, targetCtx);
@@ -606,6 +674,8 @@ const CanvasBoard = (() => {
                 drawStroke(stroke, targetCtx);
             }
         }
+
+        targetCtx.restore();
     }
 
     // ── Public API ────────────────────────────
@@ -653,9 +723,8 @@ const CanvasBoard = (() => {
         tmp.width = w * pixelRatio;
         tmp.height = h * pixelRatio;
         const tctx = tmp.getContext('2d');
-        tctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
-        renderStrokesToContext(strokeList, tctx);
+        // Render with auto-centering and fitting
+        renderStrokesToContext(strokeList, tctx, w, h);
 
         return tmp.toDataURL('image/png', quality);
     }
@@ -701,6 +770,7 @@ const CanvasBoard = (() => {
         getFontOptions, isTextMode,
         showEditPopup, hideEditPopup,
         applyEdit, deleteEditStroke,
-        isEditPopupOpen
+        isEditPopupOpen,
+        getStrokesBoundingBox
     };
 })();
