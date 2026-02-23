@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Sketch Board — Tableau de Dessin</title>
+    <meta name="description" content="Tableau de dessin minimaliste pour croquis vidéo">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- ═══════════════ TOOLBAR ═══════════════ -->
+    <header id="toolbar">
+        <div class="toolbar-left">
+            <button id="btn-undo" class="tool-btn" title="Annuler (Ctrl+Z)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 10h13a4 4 0 0 1 0 8H7" />
+                    <polyline points="7 6 3 10 7 14" />
+                </svg>
+            </button>
+            <button id="btn-redo" class="tool-btn" title="Rétablir (Ctrl+Shift+Z)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 10H8a4 4 0 0 0 0 8h9" />
+                    <polyline points="17 6 21 10 17 14" />
+                </svg>
+            </button>
+            <div class="toolbar-divider"></div>
+            <button id="btn-clear" class="tool-btn" title="Tout effacer">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+            </button>
+            <button id="btn-save" class="tool-btn tool-btn--accent" title="Sauvegarder (Ctrl+S)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                </svg>
+                <span class="btn-label">Save</span>
+            </button>
+        </div>
+
+        <div class="toolbar-center">
+            <div class="brush-control">
+                <span class="brush-label">Taille</span>
+                <input type="range" id="brush-slider" min="2" max="18" value="4" step="1">
+                <span id="brush-size-display" class="brush-value">4</span>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="zoom-control">
+                <button id="btn-zoom-out" class="tool-btn" title="Dézoomer (Ctrl+-)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        <line x1="8" y1="11" x2="14" y2="11" />
+                    </svg>
+                </button>
+                <span id="zoom-level" class="zoom-value" title="Double-cliquez pour réinitialiser">100%</span>
+                <button id="btn-zoom-in" class="tool-btn" title="Zoomer (Ctrl++)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        <line x1="11" y1="8" x2="11" y2="14" />
+                        <line x1="8" y1="11" x2="14" y2="11" />
+                    </svg>
+                </button>
+                <button id="btn-zoom-reset" class="tool-btn" title="Réinitialiser zoom">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                    </svg>
+                </button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div id="active-indicator">
+                <span id="active-color-dot"></span>
+            </div>
+        </div>
+
+        <div class="toolbar-right">
+            <button id="btn-history" class="tool-btn" title="Historique">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span class="btn-label">Historique</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ═══════════════ CANVAS ═══════════════ -->
+    <main id="canvas-container">
+        <canvas id="draw-canvas"></canvas>
+    </main>
+
+    <!-- ═══════════════ PALETTE ═══════════════ -->
+    <footer id="palette">
+        <div id="palette-colors">
+            <!-- generated by palette.js -->
+        </div>
+    </footer>
+
+    <!-- ═══════════════ HISTORY PANEL ═══════════════ -->
+    <aside id="history-panel" class="panel-hidden">
+        <div class="panel-header">
+            <h2>Historique</h2>
+            <button id="btn-close-history" class="tool-btn" title="Fermer">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+        <div id="history-list" class="panel-body">
+            <p class="empty-state">Aucun dessin sauvegardé</p>
+        </div>
+    </aside>
+
+    <!-- ═══════════════ SAVE MODAL ═══════════════ -->
+    <div id="save-modal" class="modal-overlay modal-hidden">
+        <div class="modal-card">
+            <h3>Sauvegarder le dessin</h3>
+            <input type="text" id="save-name-input" placeholder="Nom du dessin…" autocomplete="off" maxlength="60">
+            <div class="modal-actions">
+                <button id="modal-cancel" class="modal-btn modal-btn--ghost">Annuler</button>
+                <button id="modal-confirm" class="modal-btn modal-btn--primary">Sauvegarder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════ CONFIRM MODAL ═══════════════ -->
+    <div id="confirm-modal" class="modal-overlay modal-hidden">
+        <div class="modal-card">
+            <h3 id="confirm-title">Confirmation</h3>
+            <p id="confirm-message">Êtes-vous sûr ?</p>
+            <div class="modal-actions">
+                <button id="confirm-cancel" class="modal-btn modal-btn--ghost">Annuler</button>
+                <button id="confirm-ok" class="modal-btn modal-btn--danger">Confirmer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════ RENAME MODAL ═══════════════ -->
+    <div id="rename-modal" class="modal-overlay modal-hidden">
+        <div class="modal-card">
+            <h3>Renommer</h3>
+            <input type="text" id="rename-input" placeholder="Nouveau nom…" autocomplete="off" maxlength="60">
+            <div class="modal-actions">
+                <button id="rename-cancel" class="modal-btn modal-btn--ghost">Annuler</button>
+                <button id="rename-confirm" class="modal-btn modal-btn--primary">Renommer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS Modules -->
+    <script src="js/canvas.js"></script>
+    <script src="js/palette.js"></script>
+    <script src="js/toolbar.js"></script>
+    <script src="js/modal.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
