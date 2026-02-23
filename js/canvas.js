@@ -108,6 +108,11 @@ const CanvasBoard = (() => {
 
     // ── Pointer handlers ──────────────────────
     function onPointerDown(e) {
+        // Close edit popup if open and clicking elsewhere
+        if (isEditPopupOpen()) {
+            hideEditPopup();
+        }
+
         // Left-click while in text mode (without Ctrl) → commit text and exit
         if (textMode && e.button === 0 && !e.ctrlKey && !e.metaKey) {
             commitTextBuffer();
@@ -130,6 +135,15 @@ const CanvasBoard = (() => {
         }
 
         if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+        // Check if clicking on existing text → open edit popup
+        const { x: wx, y: wy } = screenToWorld(sx, sy);
+        const hitIndex = hitTestText(wx, wy);
+        if (hitIndex >= 0 && !textMode) {
+            showEditPopup(hitIndex);
+            return;
+        }
+
         canvas.setPointerCapture(e.pointerId);
         isDrawing = true;
 
@@ -256,43 +270,119 @@ const CanvasBoard = (() => {
         textBuffer = '';
         canvas.style.cursor = 'text';
 
-        // Show floating text toolbar
-        showTextToolbar(x, y);
-
         redraw();
         drawTextCursor();
-    }
-
-    function showTextToolbar(wx, wy) {
-        let toolbar = document.getElementById('text-toolbar');
-        if (!toolbar) return;
-        toolbar.classList.remove('text-toolbar-hidden');
-
-        // Position near the text cursor (screen coords)
-        const rect = canvas.getBoundingClientRect();
-        const sx = wx * scale + offsetX + rect.left;
-        const sy = wy * scale + offsetY + rect.top - 50;
-
-        toolbar.style.left = Math.max(8, Math.min(sx, window.innerWidth - 320)) + 'px';
-        toolbar.style.top = Math.max(8, sy) + 'px';
-
-        // Sync controls with current state
-        document.getElementById('text-font-select').value = textFontFamily;
-        document.getElementById('text-size-input').value = textFontSize;
-        document.getElementById('text-color-input').value = currentColor;
-    }
-
-    function hideTextToolbar() {
-        const toolbar = document.getElementById('text-toolbar');
-        if (toolbar) toolbar.classList.add('text-toolbar-hidden');
     }
 
     function exitTextMode() {
         textMode = false;
         textBuffer = '';
-        hideTextToolbar();
         canvas.style.cursor = 'crosshair';
         redraw();
+    }
+
+    // ── Click-to-edit text strokes ───────────
+    let editingStrokeIndex = -1;
+
+    function hitTestText(wx, wy) {
+        // Walk backwards so top-most text wins
+        for (let i = strokes.length - 1; i >= 0; i--) {
+            const s = strokes[i];
+            if (s.type !== 'text') continue;
+
+            const family = s.fontFamily || 'Inter';
+            ctx.save();
+            ctx.font = `${s.fontSize}px '${family}', sans-serif`;
+            const w = ctx.measureText(s.text).width;
+            ctx.restore();
+
+            const left = s.x;
+            const right = s.x + w;
+            const top = s.y - s.fontSize * 0.8;
+            const bottom = s.y + s.fontSize * 0.25;
+
+            if (wx >= left && wx <= right && wy >= top && wy <= bottom) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    function showEditPopup(strokeIndex) {
+        editingStrokeIndex = strokeIndex;
+        const s = strokes[strokeIndex];
+        const popup = document.getElementById('text-edit-popup');
+        if (!popup) return;
+
+        // Fill controls with stroke values
+        document.getElementById('text-edit-value').value = s.text;
+        document.getElementById('text-edit-font').value = s.fontFamily || 'Inter';
+        document.getElementById('text-edit-size').value = s.fontSize;
+        document.getElementById('text-edit-color').value = s.color;
+
+        // Position popup near the text (screen coords)
+        const rect = canvas.getBoundingClientRect();
+        const sx = s.x * scale + offsetX + rect.left;
+        const sy = s.y * scale + offsetY + rect.top;
+
+        popup.style.left = Math.max(8, Math.min(sx, window.innerWidth - 300)) + 'px';
+        popup.style.top = Math.max(8, sy - 140) + 'px';
+        popup.classList.remove('text-edit-popup-hidden');
+
+        // Highlight the selected stroke
+        redraw();
+        highlightStroke(strokeIndex);
+
+        setTimeout(() => document.getElementById('text-edit-value').focus(), 50);
+    }
+
+    function hideEditPopup() {
+        editingStrokeIndex = -1;
+        const popup = document.getElementById('text-edit-popup');
+        if (popup) popup.classList.add('text-edit-popup-hidden');
+        redraw();
+    }
+
+    function applyEdit() {
+        if (editingStrokeIndex < 0 || editingStrokeIndex >= strokes.length) return;
+        const s = strokes[editingStrokeIndex];
+        s.text = document.getElementById('text-edit-value').value || s.text;
+        s.fontFamily = document.getElementById('text-edit-font').value;
+        s.fontSize = parseInt(document.getElementById('text-edit-size').value, 10) || s.fontSize;
+        s.color = document.getElementById('text-edit-color').value;
+        hideEditPopup();
+    }
+
+    function deleteEditStroke() {
+        if (editingStrokeIndex < 0 || editingStrokeIndex >= strokes.length) return;
+        strokes.splice(editingStrokeIndex, 1);
+        hideEditPopup();
+    }
+
+    function highlightStroke(index) {
+        const s = strokes[index];
+        if (!s || s.type !== 'text') return;
+
+        const family = s.fontFamily || 'Inter';
+        ctx.save();
+        applyTransform();
+        ctx.font = `${s.fontSize}px '${family}', sans-serif`;
+        const w = ctx.measureText(s.text).width;
+        const pad = 4;
+
+        ctx.strokeStyle = 'var(--accent, #6366f1)';
+        ctx.strokeStyle = '#6366f1';
+        ctx.lineWidth = 1.5 / scale;
+        ctx.setLineDash([4 / scale, 3 / scale]);
+        ctx.strokeRect(
+            s.x - pad, s.y - s.fontSize * 0.8 - pad,
+            w + pad * 2, s.fontSize * 1.05 + pad * 2
+        );
+        ctx.restore();
+    }
+
+    function isEditPopupOpen() {
+        return editingStrokeIndex >= 0;
     }
 
     function commitTextBuffer() {
@@ -618,6 +708,9 @@ const CanvasBoard = (() => {
         zoomIn, zoomOut, zoomReset,
         setTextFont, setTextSize,
         getTextFont, getTextSize,
-        getFontOptions, isTextMode
+        getFontOptions, isTextMode,
+        showEditPopup, hideEditPopup,
+        applyEdit, deleteEditStroke,
+        isEditPopupOpen
     };
 })();

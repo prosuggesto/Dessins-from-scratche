@@ -41,7 +41,7 @@ const Toolbar = (() => {
         document.getElementById('btn-zoom-reset').addEventListener('click', () => CanvasBoard.zoomReset());
         document.getElementById('zoom-level').addEventListener('dblclick', () => CanvasBoard.zoomReset());
 
-        // ── Text toolbar controls ─────────────
+        // ── Text controls (in palette bar) ────────
         document.getElementById('text-font-select').addEventListener('change', (e) => {
             CanvasBoard.setTextFont(e.target.value);
         });
@@ -53,12 +53,27 @@ const Toolbar = (() => {
             }
         });
 
-        document.getElementById('text-color-input').addEventListener('input', (e) => {
-            CanvasBoard.setColor(e.target.value);
+        // ── Text edit popup events ────────────
+        document.getElementById('text-edit-ok').addEventListener('click', () => {
+            CanvasBoard.applyEdit();
         });
 
-        // Prevent text toolbar inputs from triggering canvas text input
-        document.getElementById('text-toolbar').addEventListener('pointerdown', (e) => {
+        document.getElementById('text-edit-delete').addEventListener('click', () => {
+            CanvasBoard.deleteEditStroke();
+        });
+
+        document.getElementById('text-edit-value').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                CanvasBoard.applyEdit();
+            }
+        });
+
+        // Prevent text controls and edit popup from triggering canvas
+        document.getElementById('text-controls').addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+        });
+        document.getElementById('text-edit-popup').addEventListener('pointerdown', (e) => {
             e.stopPropagation();
         });
     }

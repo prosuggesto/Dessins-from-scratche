@@ -562,38 +562,38 @@ body {
   pointer-events: none;
 }
 
-/* ── TEXT TOOLBAR (floating) ─────────────── */
-#text-toolbar {
-  position: fixed;
-  z-index: 150;
+/* ── TEXT CONTROLS (in palette bar) ───────── */
+.palette-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+  margin: 0 8px;
+}
+
+#text-controls {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background: rgba(24, 24, 30, .92);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, .5);
-  transition: opacity .2s, transform .2s;
 }
 
-#text-toolbar.text-toolbar-hidden {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(8px);
+.text-controls-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  font-weight: 600;
 }
 
 #text-font-select {
-  padding: 6px 8px;
+  padding: 5px 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   color: var(--text);
-  font: 400 13px/1 var(--font);
+  font: 400 12px/1 var(--font);
   cursor: pointer;
   outline: none;
-  max-width: 140px;
+  max-width: 120px;
   transition: border-color var(--transition);
 }
 
@@ -607,15 +607,16 @@ body {
 }
 
 #text-size-input {
-  width: 58px;
-  padding: 6px 8px;
+  width: 50px;
+  padding: 5px 6px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   color: var(--text);
-  font: 500 13px/1 var(--font);
+  font: 500 12px/1 var(--font);
   text-align: center;
   outline: none;
+  appearance: textfield;
   -moz-appearance: textfield;
   transition: border-color var(--transition);
 }
@@ -627,38 +628,142 @@ body {
 #text-size-input::-webkit-outer-spin-button,
 #text-size-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
+  appearance: none;
   margin: 0;
 }
 
-#text-color-input {
+/* ── TEXT EDIT POPUP (click on text) ──────── */
+#text-edit-popup {
+  position: fixed;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: rgba(24, 24, 30, .95);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .6);
+  min-width: 260px;
+  transition: opacity .15s, transform .15s;
+}
+
+#text-edit-popup.text-edit-popup-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+}
+
+.text-edit-popup-arrow {
+  position: absolute;
+  bottom: -6px;
+  left: 24px;
+  width: 12px;
+  height: 12px;
+  background: rgba(24, 24, 30, .95);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
+#text-edit-value {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: 400 14px/1.3 var(--font);
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+#text-edit-value:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.text-edit-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.text-edit-row select {
+  flex: 1;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font: 400 12px/1 var(--font);
+  outline: none;
+  cursor: pointer;
+}
+
+.text-edit-row select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.text-edit-row input[type="number"] {
+  width: 50px;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font: 500 12px/1 var(--font);
+  text-align: center;
+  outline: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.text-edit-row input[type="number"]::-webkit-outer-spin-button,
+.text-edit-row input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
-  width: 30px;
-  height: 30px;
+  appearance: none;
+  margin: 0;
+}
+
+.text-edit-row input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
   border: 2px solid var(--border);
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
   padding: 0;
   overflow: hidden;
-  transition: border-color var(--transition);
 }
 
-#text-color-input:hover {
-  border-color: var(--accent);
-}
-
-#text-color-input::-webkit-color-swatch-wrapper {
+.text-edit-row input[type="color"]::-webkit-color-swatch-wrapper {
   padding: 0;
 }
 
-#text-color-input::-webkit-color-swatch {
+.text-edit-row input[type="color"]::-webkit-color-swatch {
   border: none;
   border-radius: 50%;
 }
 
-#text-color-input::-moz-color-swatch {
+.text-edit-row input[type="color"]::-moz-color-swatch {
   border: none;
   border-radius: 50%;
+}
+
+.text-edit-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.text-edit-btn {
+  padding: 6px 14px !important;
+  font-size: 12px !important;
 }
 
 /* ── RESPONSIVE ──────────────────────────── */
