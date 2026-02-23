@@ -61,6 +61,13 @@ body {
   gap: 8px;
 }
 
+.toolbar-logo {
+  height: 32px;
+  width: auto;
+  margin-right: 8px;
+  filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.3));
+}
+
 .toolbar-divider {
   width: 1px;
   height: 24px;
@@ -370,6 +377,7 @@ body {
 
 /* ── HISTORY CARD ────────────────────────── */
 .history-card {
+  position: relative;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);

@@ -38,32 +38,32 @@ const ExportEngine = (() => {
      * Renders a drawing section to a context
      */
     async function renderDrawingToContext(drawing, ctx, width, heightPerDrawing, yOffset, pixelRatio, logoImg) {
-        const titleHeight = 100 * pixelRatio;
-        const padding = 40 * pixelRatio;
+        const titleHeight = 120 * pixelRatio;
+        const padding = 50 * pixelRatio;
 
         // Section Background (Uniform dark)
         ctx.fillStyle = BG_COLOR;
         ctx.fillRect(0, yOffset, width, heightPerDrawing + titleHeight);
 
-        // Draw Logo (Suggesto)
+        // Draw Logo (Suggesto) - Premium sizing
         if (logoImg) {
-            const logoW = 120 * pixelRatio;
-            const logoH = (logoImg.height / logoImg.width) * logoW;
-            ctx.drawImage(logoImg, padding, yOffset + 25 * pixelRatio, logoW, logoH);
+            const logoSize = 60 * pixelRatio;
+            ctx.drawImage(logoImg, padding, yOffset + 30 * pixelRatio, logoSize, logoSize);
         }
 
         // Draw Header (Title & Date)
         ctx.save();
         ctx.fillStyle = ACCENT_COLOR;
-        ctx.font = `bold ${24 * pixelRatio}px 'Inter', sans-serif`;
-        ctx.fillText(drawing.name, padding + (logoImg ? 140 * pixelRatio : 0), yOffset + 50 * pixelRatio);
+        ctx.font = `600 ${28 * pixelRatio}px 'Inter', sans-serif`;
+        const textX = padding + (logoImg ? 80 * pixelRatio : 0);
+        ctx.fillText(drawing.name, textX, yOffset + 55 * pixelRatio);
 
         const date = new Date(drawing.createdAt).toLocaleDateString('fr-FR', {
             day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
         });
         ctx.fillStyle = SUBTEXT_COLOR;
         ctx.font = `${14 * pixelRatio}px 'Inter', sans-serif`;
-        ctx.fillText(date, padding + (logoImg ? 140 * pixelRatio : 0), yOffset + 75 * pixelRatio);
+        ctx.fillText(date, textX, yOffset + 85 * pixelRatio);
         ctx.restore();
 
         // Draw Strokes
@@ -87,7 +87,7 @@ const ExportEngine = (() => {
 
         const canvasWidth = baseWidth * pixelRatio;
         const canvasHeightPerDrawing = baseHeight * pixelRatio;
-        const titleHeight = 100 * pixelRatio;
+        const titleHeight = 120 * pixelRatio;
 
         const totalHeight = (canvasHeightPerDrawing + titleHeight) * selectedDrawings.length;
 
