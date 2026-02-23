@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════
-   CANVAS ENGINE — Freehand drawing with smoothing + zoom/pan + text input
+   CANVAS ENGINE — v1.0.1 (Text Dragging & Smart Popup)
    ══════════════════════════════════════════════ */
 
 const CanvasBoard = (() => {
